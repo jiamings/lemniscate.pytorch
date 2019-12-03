@@ -18,24 +18,24 @@ def NN(epoch, net, lemniscate, trainloader, testloader, recompute_memory=0):
     if hasattr(trainloader.dataset, 'imgs'):
         trainLabels = torch.LongTensor([y for (p, y) in trainloader.dataset.imgs]).cuda()
     else:
-        trainLabels = torch.LongTensor(trainloader.dataset.train_labels).cuda()
+        trainLabels = torch.LongTensor(trainloader.dataset.targets).cuda()
 
     if recompute_memory:
         transform_bak = trainloader.dataset.transform
         trainloader.dataset.transform = testloader.dataset.transform
         temploader = torch.utils.data.DataLoader(trainloader.dataset, batch_size=100, shuffle=False, num_workers=1)
         for batch_idx, (inputs, targets, indexes) in enumerate(temploader):
-            targets = targets.cuda(async=True)
+            targets = targets.cuda()
             batchSize = inputs.size(0)
             features = net(inputs)
             trainFeatures[:, batch_idx*batchSize:batch_idx*batchSize+batchSize] = features.data.t()
-        trainLabels = torch.LongTensor(temploader.dataset.train_labels).cuda()
+        trainLabels = torch.LongTensor(temploader.dataset.targets).cuda()
         trainloader.dataset.transform = transform_bak
-    
+
     end = time.time()
     with torch.no_grad():
         for batch_idx, (inputs, targets, indexes) in enumerate(testloader):
-            targets = targets.cuda(async=True)
+            targets = targets.cuda()
             batchSize = inputs.size(0)
             features = net(inputs)
             net_time.update(time.time() - end)
@@ -52,7 +52,7 @@ def NN(epoch, net, lemniscate, trainloader, testloader, recompute_memory=0):
 
             total += targets.size(0)
             correct += retrieval.eq(targets.data).sum().item()
-            
+
             cls_time.update(time.time() - end)
             end = time.time()
 
@@ -75,7 +75,7 @@ def kNN(epoch, net, lemniscate, trainloader, testloader, K, sigma, recompute_mem
     if hasattr(trainloader.dataset, 'imgs'):
         trainLabels = torch.LongTensor([y for (p, y) in trainloader.dataset.imgs]).cuda()
     else:
-        trainLabels = torch.LongTensor(trainloader.dataset.train_labels).cuda()
+        trainLabels = torch.LongTensor(trainloader.dataset.targets).cuda()
     C = trainLabels.max() + 1
 
     if recompute_memory:
@@ -83,13 +83,13 @@ def kNN(epoch, net, lemniscate, trainloader, testloader, K, sigma, recompute_mem
         trainloader.dataset.transform = testloader.dataset.transform
         temploader = torch.utils.data.DataLoader(trainloader.dataset, batch_size=100, shuffle=False, num_workers=1)
         for batch_idx, (inputs, targets, indexes) in enumerate(temploader):
-            targets = targets.cuda(async=True)
+            targets = targets.cuda()
             batchSize = inputs.size(0)
             features = net(inputs)
             trainFeatures[:, batch_idx*batchSize:batch_idx*batchSize+batchSize] = features.data.t()
-        trainLabels = torch.LongTensor(temploader.dataset.train_labels).cuda()
+        trainLabels = torch.LongTensor(temploader.dataset.targets).cuda()
         trainloader.dataset.transform = transform_bak
-    
+
     top1 = 0.
     top5 = 0.
     end = time.time()
@@ -97,7 +97,7 @@ def kNN(epoch, net, lemniscate, trainloader, testloader, K, sigma, recompute_mem
         retrieval_one_hot = torch.zeros(K, C).cuda()
         for batch_idx, (inputs, targets, indexes) in enumerate(testloader):
             end = time.time()
-            targets = targets.cuda(async=True)
+            targets = targets.cuda()
             batchSize = inputs.size(0)
             features = net(inputs)
             net_time.update(time.time() - end)

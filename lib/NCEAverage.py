@@ -24,9 +24,9 @@ class NCEFunction(Function):
         weight.resize_(batchSize, K+1, inputSize)
 
         # inner product
-        out = torch.bmm(weight, x.data.resize_(batchSize, inputSize, 1))
+        out = torch.bmm(weight, x.view(batchSize, inputSize, 1))
         out.div_(T).exp_() # batchSize * self.K+1
-        x.data.resize_(batchSize, inputSize)
+        x.view(batchSize, inputSize)
 
         if Z < 0:
             params[2] = out.mean() * outputSize
@@ -47,14 +47,14 @@ class NCEFunction(Function):
         Z = params[2].item()
         momentum = params[3].item()
         batchSize = gradOutput.size(0)
-        
-        # gradients d Pm / d linear = exp(linear) / Z
-        gradOutput.data.mul_(out.data)
-        # add temperature
-        gradOutput.data.div_(T)
 
-        gradOutput.data.resize_(batchSize, 1, K+1)
-        
+        # gradients d Pm / d linear = exp(linear) / Z
+        gradOutput.mul_(out.data)
+        # add temperature
+        gradOutput.div_(T)
+
+        gradOutput = gradOutput.view(batchSize, 1, K+1)
+
         # gradient of linear
         gradInput = torch.bmm(gradOutput.data, weight)
         gradInput.resize_as_(x)
@@ -66,7 +66,7 @@ class NCEFunction(Function):
         w_norm = weight_pos.pow(2).sum(1, keepdim=True).pow(0.5)
         updated_weight = weight_pos.div(w_norm)
         memory.index_copy_(0, y, updated_weight)
-        
+
         return gradInput, None, None, None, None
 
 class NCEAverage(nn.Module):
@@ -82,7 +82,7 @@ class NCEAverage(nn.Module):
         self.register_buffer('params',torch.tensor([K, T, -1, momentum]));
         stdv = 1. / math.sqrt(inputSize/3)
         self.register_buffer('memory', torch.rand(outputSize, inputSize).mul_(2*stdv).add_(-stdv))
- 
+
     def forward(self, x, y):
         batchSize = x.size(0)
         idx = self.multinomial.draw(batchSize * (self.K+1)).view(batchSize, -1)
